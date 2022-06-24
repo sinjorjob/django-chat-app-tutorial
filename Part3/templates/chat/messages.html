@@ -1,0 +1,122 @@
+{% extends './base.html' %}
+{% load static %}
+{% block title %}
+<h3 class=" text-center">Django-Chat画面</h3>
+{% endblock %}
+{% block contents %}
+<div class="mesgs">
+    <div class="msg_history" id="board">
+        {% for message in messages %}
+        {% if friend == message.sender_name %}
+        <div class="incoming_msg">
+            <div class="incoming_msg_img"> <img src="{{ friend.thumbnail.url }}" alt="sunil"> </div>
+            <div class="received_msg">
+                <div class="received_withd_msg">
+                    <p>{{message.description}}</p>
+                    <span class="time_date">{{message.time}}</span>
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <div class="outgoing_msg">
+            <div class="sent_msg">
+                <p>{{message.description}}</p>
+                <span class="time_date">{{message.time}}</span>
+            </div>
+        </div>
+        {% endif %}
+        {% endfor %}
+    </div>
+    <div class="type_msg">
+        <form method="post" class="form-group" id="chat-box">
+            {% csrf_token %}
+            <div class="input_msg_write">
+                <input type="text" class="write_msg" placeholder="メッセージを送信..." name="message" id="msg_field">
+                <button type="submit" name="send" class="msg_send_btn"><i class="fa fa-paper-plane-o"
+                        aria-hidden="true"></i></button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    //メッセージの送信者（会話相手）と受信者（自分自身）を取得しておく
+    sender_id = "{{ friend.id }}";
+    receiver_id = "{{ current_user.id }}";
+    //スクロールバーを自動で下まで移動する処理を定義
+    let messageBody = document.querySelector('.msg_history');
+    messageBody.scrollTop = messageBody.scrollHeight - messageBody.clientHeight;
+    function scrolltoend() {
+        $('#board').stop().animate({
+            scrollTop: $('#board')[0].scrollHeight
+        }, 800);
+    }
+    //画面上に追加するメッセージの定義
+    const text_box = '<div class="outgoing_msg">' +
+        '<div class="sent_msg">' +
+        '<p>{description}</p>' +
+        '<span class="time_date">{time}</span>' +
+        '</div>' +
+        '</div>'
+    //送信ボタンクリック時の処理を定義
+    $(function () {
+        $('#chat-box').on('submit', function (event) {
+            event.preventDefault();  //ページノリロードを防止
+            let message = $('#msg_field');
+            //sendメソッドを実行
+            send('{{ current_user.id }}', '{{ friend.id }}', message.val());
+            message.val(''); //メッセージ入力欄をリセット
+        })
+    })
+    function send(sender, receiver, message){
+        //メッセージ送信
+        $.post('/api/messages', '{"sender_name": "' + sender + '", "receiver_name": "' +
+                receiver + '","description": "' + message + '" }', function (data) {
+            let field = text_box.replace('{description}', message);
+            let today = new Date();
+            let time = today.getHours() + ":" + today.getMinutes();
+            field = field.replace('{time}', time);
+            $('#board').append(field);
+            scrolltoend();  //スクロールバーを下まで移動
+        })
+    }
+
+    //receive関数の定期実行
+    $(function () {
+        setInterval(receive, 1000, '{{friend.thumbnail.url}}')
+    })
+ 
+    //receive関数の定期実行
+    $(function () {
+        setInterval(receive, 1000, '{{friend.thumbnail.url}}')
+    })
+
+
+    const text = '<div class="incoming_ms">' +
+        '<div class="incoming_msg_img"> <img src="{thumbnail}" alt="sunil"> </div>' +
+        '<div class="received_msg">' +
+        '<div class="received_withd_msg">' +
+        '<p>{description}</p>' +
+        '<span class="time_date">{time}</span>' +
+        '</div>' +
+        '</div>' +
+        '</div>'
+        
+    function receive(thumbnail){
+        $.get('/api/messages/' + sender_id + '/' + receiver_id, function(data){
+            if(data.length !== 0){
+                for(var i = 0; i < data.length; i++){
+                    var field = text.replace('{description}', data[i].description);
+                    var time = data[i].time.slice(0, 5)
+                    field = field.replace('{time}', time);
+                    field = field.replace('{thumbnail}', thumbnail);
+                    $('#board').append(field);
+                    scrolltoend();
+                }
+            }
+        })
+    }
+</script>
+
+
+{% endblock %}
